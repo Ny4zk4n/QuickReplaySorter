@@ -9,14 +9,13 @@ from datetime import datetime
 DEST_BASE_FOLDER = r"E:\sorted replays"
 OBS_FOLDER = r"E:\kayıtlar"
 REPLAY_FOLDER = r"E:\World_of_tanks\replays"
-SCREENSHOT_FOLDER = r"E:\World_of_tanks\screenshots"
+SCREENSHOT_FOLDER = r"E:\kayıtlar"
 
-VIDEO_EXT = "*.mp4"
+VIDEO_EXT = "*.mkv"
 REPLAY_EXT = "*.wotreplay"
-SCREENSHOT_EXT = "*.jpg"
+SCREENSHOT_EXT = "*.png"
 
 
-# Added an 'exclude_name' parameter to ignore specific files
 def get_latest_file(folder, extension, exclude_name=None):
     if not os.path.exists(folder):
         print(f"[-] Directory does not exist: {folder}")
@@ -25,9 +24,11 @@ def get_latest_file(folder, extension, exclude_name=None):
     search_pattern = os.path.join(folder, extension)
     files = glob.glob(search_pattern)
 
-    # Filter out the temp file from the list before checking dates
     if exclude_name:
-        files = [f for f in files if exclude_name.lower() not in os.path.basename(f).lower()]
+        files = [
+            f for f in files
+            if exclude_name.lower() not in os.path.basename(f).lower()
+        ]
 
     if not files:
         return None
@@ -36,46 +37,59 @@ def get_latest_file(folder, extension, exclude_name=None):
 
 
 def handle_clip_pipeline():
-    print("\n[!] Ctrl+F12 detected. Taking screenshot and waiting 3 seconds...")
+    print("\n[!] Ctrl+F12 detected.")
+    print("[!] Waiting 3 seconds for OBS/WoT to finish writing files...")
 
-    # Simulates pressing the Print Screen key so World of Tanks takes a screenshot
-    keyboard.send('print screen')
-
-    # 3-second buffer for both the screenshot and the OBS video to write to the disk
     time.sleep(3)
 
     latest_video = get_latest_file(OBS_FOLDER, VIDEO_EXT)
 
-    # Passes "temp.wotreplay" into the ignore filter so it skips it
-    latest_replay = get_latest_file(REPLAY_FOLDER, REPLAY_EXT, exclude_name="temp.wotreplay")
+    latest_replay = get_latest_file(
+        REPLAY_FOLDER,
+        REPLAY_EXT,
+        exclude_name="temp.wotreplay"
+    )
 
-    latest_screenshot = get_latest_file(SCREENSHOT_FOLDER, SCREENSHOT_EXT)
+    latest_screenshot = get_latest_file(
+        SCREENSHOT_FOLDER,
+        SCREENSHOT_EXT
+    )
 
-    # Abort if no files were found
+    # Nothing found
     if not latest_video and not latest_replay and not latest_screenshot:
-        print("[-] No new video, replay, or screenshot found. Aborting move.")
+        print("[-] No new video, replay, or screenshot found.")
         return
 
-    # Use the replay file name for the folder so it includes the Map and Tank name
+    # Use replay filename for folder name
     if latest_replay:
-        folder_name = os.path.splitext(os.path.basename(latest_replay))[0]
+        folder_name = os.path.splitext(
+            os.path.basename(latest_replay)
+        )[0]
     else:
         folder_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    target_dir = os.path.join(DEST_BASE_FOLDER, folder_name)
+    target_dir = os.path.join(
+        DEST_BASE_FOLDER,
+        folder_name
+    )
+
     os.makedirs(target_dir, exist_ok=True)
 
+    # -------------------------
     # Move Video
+    # -------------------------
     if latest_video:
         try:
             shutil.move(latest_video, target_dir)
             print(f"[+] Moved Video: {os.path.basename(latest_video)}")
         except PermissionError:
-            print(f"[-] Error: Video file is locked. OBS might need more than 3 seconds to save.")
+            print("[-] Video is locked. OBS may still be writing it.")
         except Exception as e:
-            print(f"[-] Unexpected error moving video: {e}")
+            print(f"[-] Error moving video: {e}")
 
+    # -------------------------
     # Move Replay
+    # -------------------------
     if latest_replay:
         try:
             shutil.move(latest_replay, target_dir)
@@ -83,7 +97,9 @@ def handle_clip_pipeline():
         except Exception as e:
             print(f"[-] Error moving replay: {e}")
 
+    # -------------------------
     # Move Screenshot
+    # -------------------------
     if latest_screenshot:
         try:
             shutil.move(latest_screenshot, target_dir)
@@ -91,14 +107,27 @@ def handle_clip_pipeline():
         except Exception as e:
             print(f"[-] Error moving screenshot: {e}")
 
-    print(f"[✓] Operation finished. Files saved to: {target_dir}\n")
+    print(f"[✓] Operation finished.")
+    print(f"[✓] Files saved to: {target_dir}\n")
 
 
-# Attach the hotkey
-keyboard.add_hotkey('ctrl+f12', handle_clip_pipeline, suppress=False)
+# =========================================================
+# HOTKEY
+# =========================================================
 
-print("Listening for Ctrl+F12...")
+keyboard.add_hotkey(
+    'ctrl+f12',
+    handle_clip_pipeline,
+    suppress=False
+)
+
+
+print("========================================")
+print(" WoT Replay / OBS Clip Organizer")
+print("========================================")
+print("Ctrl+F12 = SAVE current game")
 print("Press Ctrl+C in this console to exit.")
+print("========================================")
+print("Listening for Ctrl+F12...\n")
 
-# Keeps the script running in the background
 keyboard.wait()
